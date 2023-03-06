@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="8ef47fdc-f47c-44c7-ba21-f97f1c65e59c" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="97585ed7-0897-4c56-8b63-43d5225b9d51" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Masthan@123" database="data" />
+	</db:config>
+	<flow name="bacthjob-demoFlow" doc:id="79eea41d-810d-4905-a02c-17fbb043a67e" >
+		<http:listener doc:name="Listener" doc:id="bbfdb129-565e-4028-9ef0-71afdca83a1c" config-ref="HTTP_Listener_config" path="/bacth"/>
+		<ee:transform doc:name="Transform Message" doc:id="43e06db6-68f2-4ded-bbd1-0db172385503" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<os:store doc:name="Store" doc:id="69b166d1-7399-4e62-8593-d352bbd10b83" key="test"/>
+		<batch:job jobName="bacthjob-demoBatch_Job" doc:id="7353146b-82b2-41b1-a100-d3b89d706de2" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="7bac5571-1b59-41eb-9287-e74275caf7a6" acceptPolicy="ALL">
+					<ee:transform doc:name="Copy_of_Transform Message" doc:id="bbde5d73-c5e7-465d-ac63-7ab4e7f27b0a" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="6b07c509-4eb5-43ae-9c38-1b65ff6da6c9" size="5">
+						<os:retrieve doc:name="Retrieve" doc:id="d76dd6fd-7e68-46a0-8f40-3bd4da5330e7" key="test">
+							<os:default-value ><![CDATA[#['']]]></os:default-value>
+						</os:retrieve>
+						<db:insert doc:name="Insert" doc:id="deba198d-23ae-451e-927d-f2eb3527fc53" config-ref="Database_Config">
+						<db:sql><![CDATA[INSERT INTO `data`.`bacthjob`
+(`Employe_ID`,
+`Employe_Name`,
+`Salary`,
+`Phone_number`,
+`Email`)
+VALUES(:parameid,:parameName,:paramsal,:paramphone,:paramemail)
+]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+	parameid:payload.id,
+	parameName: payload.first_name,
+	paramsal: payload.salary,
+	paramphone: payload.phone,
+	paramemail:payload.email
+	
+}]]]></db:input-parameters>
+					</db:insert>
+						<logger level="INFO" doc:name="Logger" doc:id="3b49eb8b-6fc7-4d89-ad8b-41f14d3bceb2" message=";;;;;;;;;after bacth step logger;;;;;;;;;#[payload]"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<ee:transform doc:name="Transform Message" doc:id="2dfdc3d4-ad5c-4ce1-b6ab-7ce45103a098" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</batch:on-complete>
+		</batch:job>
+		<ee:transform doc:name="Transform Message" doc:id="00997508-af84-4a32-88c1-d32beed27f65" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
